@@ -1,4 +1,4 @@
-import { Observability } from '@mastra/observability';
+import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 import { Mastra } from '@mastra/core/mastra';
 import { LibSQLStore } from '@mastra/libsql';
 import { PinoLogger } from '@mastra/loggers';
@@ -12,8 +12,6 @@ export const mastra = new Mastra({
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   }),
   observability: new Observability({
-    default: {
-      enabled: true,
-    },
+    configs: { default: new DefaultObservabilityConfig() },
   }),
 });

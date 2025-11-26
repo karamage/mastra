@@ -1,4 +1,4 @@
-import { Observability } from '@mastra/observability';
+import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
@@ -35,8 +35,6 @@ export const mastra = new Mastra({
     ],
   },
   observability: new Observability({
-    default: {
-      enabled: true,
-    },
+    configs: { default: new DefaultObservabilityConfig() },
   }),
 });

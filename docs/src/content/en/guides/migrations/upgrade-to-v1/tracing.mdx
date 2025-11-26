@@ -37,16 +37,16 @@ export const mastra = new Mastra({
 
 ```typescript
 import { Mastra } from '@mastra/core';
-import { Observability } from '@mastra/observability';
+import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 
 export const mastra = new Mastra({
   observability: new Observability({
-    default: { enabled: true },
+    configs: { default: new DefaultObservabilityConfig() },
   }),
 });
 ```
 
-This minimal configuration automatically includes the `DefaultExporter`, `CloudExporter`, and `SensitiveDataFilter` processor. See the [observability tracing documentation](/docs/v1/observability/tracing/overview) for full configuration options.
+`DefaultObservabilityConfig` automatically includes the `DefaultExporter`, `CloudExporter`, and `SensitiveDataFilter` processor. See the [observability tracing documentation](/docs/v1/observability/tracing/overview) for full configuration options.
 
 **After (v1 with custom configuration):**
 
@@ -86,7 +86,7 @@ export const mastra = new Mastra({
 Key changes:
 1. Install `@mastra/observability` package
 2. Replace `telemetry:` with `observability: new Observability()`
-3. Use `default: { enabled: true }` for quick setup, or `configs:` for custom configuration
+3. Use `DefaultObservabilityConfig` for quick setup, or custom `configs:` for more control
 4. Export types change from string literals (`'otlp'`) to exporter class instances (`new OtelExporter()`)
 
 See the [exporters documentation](/docs/v1/observability/tracing/overview#exporters) for all available exporters.
@@ -111,19 +111,31 @@ export const mastra = new Mastra({
 
 ```typescript
 import { Mastra } from '@mastra/core';
-import { Observability } from '@mastra/observability';
+import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 
 export const mastra = new Mastra({
   observability: new Observability({
-    default: { enabled: true },
+    configs: { default: new DefaultObservabilityConfig() },
   }),
 });
 ```
 
 Key changes:
 1. Install `@mastra/observability` package
-2. Import `Observability` from `@mastra/observability`
-3. Wrap configuration with `new Observability()`
+2. Import `Observability` and `DefaultObservabilityConfig` from `@mastra/observability`
+3. Use `DefaultObservabilityConfig` in the `configs` object
+
+:::note[Legacy Support]
+The `default: { enabled: true }` pattern is still supported for backwards compatibility:
+
+```typescript
+observability: new Observability({
+  default: { enabled: true },
+})
+```
+
+However, `DefaultObservabilityConfig` is the recommended approach as it's more explicit about what's being configured.
+:::
 
 ## Changed
 
@@ -146,16 +158,17 @@ npm install @mastra/observability@beta
 
 The observability registry is now configured using an `Observability` class instance instead of a plain object.
 
-To migrate, wrap your configuration object with `new Observability()`.
+To migrate, wrap your configuration with `new Observability()` and use `DefaultObservabilityConfig`:
 
 ```diff
-+ import { Observability } from '@mastra/observability';
++ import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 
   export const mastra = new Mastra({
 -   observability: {
-+   observability: new Observability({
-      default: { enabled: true },
+-     default: { enabled: true },
 -   },
++   observability: new Observability({
++     configs: { default: new DefaultObservabilityConfig() },
 +   }),
   });
 ```
@@ -236,11 +249,11 @@ Simply remove the `instrumentation.mjs` file and configure observability in your
 
 ```typescript
 // src/mastra/index.ts
-import { Observability } from '@mastra/observability';
+import { Observability, DefaultObservabilityConfig } from '@mastra/observability';
 
 export const mastra = new Mastra({
   observability: new Observability({
-    default: { enabled: true },
+    configs: { default: new DefaultObservabilityConfig() },
   }),
 });
 ```

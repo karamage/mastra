@@ -7,6 +7,27 @@ import PropertiesTable from "@site/src/components/PropertiesTable";
 
 # Configuration
 
+## DefaultObservabilityConfig
+
+Pre-configured observability instance with Mastra's recommended defaults. Use this for the simplest setup:
+
+```typescript
+import { Observability, DefaultObservabilityConfig } from "@mastra/observability";
+
+export const mastra = new Mastra({
+  observability: new Observability({
+    configs: { default: new DefaultObservabilityConfig() },
+  }),
+});
+```
+
+`DefaultObservabilityConfig` provides:
+
+- **Service Name**: `"mastra"`
+- **Sampling**: Always (100% of traces)
+- **Exporters**: `DefaultExporter` (storage) + `CloudExporter` (Mastra Cloud)
+- **Processors**: `SensitiveDataFilter` (redacts sensitive data)
+
 ## ObservabilityRegistryConfig
 
 ```typescript
@@ -22,13 +43,13 @@ interface ObservabilityRegistryConfig {
     {
       name: "default",
       type: "{ enabled?: boolean }",
-      description: "Enable default configuration with DefaultExporter and CloudExporter",
+      description: "Legacy option to enable default configuration. Prefer using DefaultObservabilityConfig in configs instead.",
       required: false,
     },
     {
       name: "configs",
       type: "Record<string, Omit<ObservabilityInstanceConfig, 'name'> | ObservabilityInstance>",
-      description: "Named observability instance configurations or pre-instantiated instances",
+      description: "Named observability instance configurations or pre-instantiated instances (including DefaultObservabilityConfig)",
       required: false,
     },
     {
