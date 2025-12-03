@@ -172,26 +172,12 @@ export class ObservabilityMongoDB extends ObservabilityStorage {
         }
       }
 
-      // Handle entity filtering
-      if (entityId && entityType) {
-        let name = '';
-        if (entityType === 'workflow') {
-          name = `workflow run: '${entityId}'`;
-        } else if (entityType === 'agent') {
-          name = `agent run: '${entityId}'`;
-        } else {
-          const error = new MastraError({
-            id: createStorageErrorId('MONGODB', 'GET_TRACES_PAGINATED', 'INVALID_ENTITY_TYPE'),
-            domain: ErrorDomain.STORAGE,
-            category: ErrorCategory.USER,
-            details: {
-              entityType,
-            },
-            text: `Cannot filter by entity type: ${entityType}`,
-          });
-          throw error;
-        }
-        mongoFilter.name = name;
+      // Entity filtering now uses first-class columns
+      if (entityId) {
+        mongoFilter.entityId = entityId;
+      }
+      if (entityType) {
+        mongoFilter.entityType = entityType;
       }
 
       // Get total count
