@@ -1,9 +1,10 @@
 import { scoreTraces } from '@mastra/core/evals/scoreTraces';
-import { parseTracesQueryParams, type StoragePagination } from '@mastra/core/storage';
+import { MastraStorage, parseTracesQueryParams } from '@mastra/core/storage';
+import type { TracesPaginatedArg, StoragePagination } from '@mastra/core/storage';
 import { HTTPException } from '../http-exception';
 import {
-  getAITracesPaginatedResponseSchema,
-  getAITraceResponseSchema,
+  listTracesPaginatedResponseSchema,
+  getTraceResponseSchema,
   scoreTracesBodySchema,
   scoreTracesResponseSchema,
   listScoresBySpanResponseSchema,
@@ -14,6 +15,17 @@ import {
 import { createRoute } from '../server-adapter/routes/route-builder';
 import type { Context } from '../types';
 import { handleError } from './error';
+import type { Mastra } from '@mastra/core/mastra';
+
+
+
+function getStorage(mastra: Mastra) : MastraStorage {
+  const storage = mastra.getStorage();
+  if (!storage) {
+    throw new HTTPException(500, { message: 'Storage is not available' });
+  }
+  return storage;
+}
 
 export async function listScoresBySpan({
   mastra,
@@ -28,10 +40,7 @@ export async function listScoresBySpan({
   perPage: StoragePagination['perPage'];
 }) {
   try {
-    const storage = mastra.getStorage();
-    if (!storage) {
-      throw new HTTPException(500, { message: 'Storage is not available' });
-    }
+    const storage = getStorage(mastra);
 
     if (!traceId || !spanId) {
       throw new HTTPException(400, { message: 'Trace ID and span ID are required' });
@@ -44,7 +53,7 @@ export async function listScoresBySpan({
 }
 
 // ============================================================================
-// Route Definitions
+// Route Definitions (new pattern - handlers defined inline with createRoute)
 // ============================================================================
 
 /**
@@ -58,23 +67,27 @@ export async function listScoresBySpan({
  * - Nested objects: ?metadata[key1]=val1&metadata[key2]=val2
  * - Booleans: ?hasChildError=true
  */
-export const GET_TRACES_PAGINATED_ROUTE = createRoute({
+export const LIST_TRACES_PAGINATED_ROUTE = createRoute({
   method: 'GET',
   path: '/api/observability/traces',
   responseType: 'json',
-  // No queryParamSchema - raw params are parsed with qs.parse + Zod
-  // to handle bracket notation for nested objects and arrays
+  queryParamSchema: z.object({
+    page: z.coerce.number().optional().default(0),
+    perPage: z.coerce.number().optional().default(10),
+    name: z.string().optional(),
+    spanType: z.string().optional(),
+    dateRange: z.string().optional(),
+    entityId: z.string().optional(),
+    entityType: z.string().optional(),
+  }),
   responseSchema: getAITracesPaginatedResponseSchema,
-  summary: 'Get AI traces',
+  summary: 'List traces',
   description:
-    'Returns a paginated list of AI execution traces with optional filtering by type, date range, entity, status, tags, and more',
+    'Returns a paginated list of traces with optional filtering by type, date range, entity, status, tags, and more',
   tags: ['Observability'],
   handler: async ({ mastra, ...queryParams }) => {
     try {
-      const storage = mastra.getStorage();
-      if (!storage) {
-        throw new HTTPException(500, { message: 'Storage is not available' });
-      }
+      const storage = getStorage(mastra);
 
       // Extract just the query param keys (filter out runtime context)
       const { requestContext, tools, taskStore, abortSignal, ...rawParams } = queryParams as Record<string, unknown>;
@@ -111,10 +124,7 @@ export const GET_TRACE_ROUTE = createRoute({
         throw new HTTPException(400, { message: 'Trace ID is required' });
       }
 
-      const storage = mastra.getStorage();
-      if (!storage) {
-        throw new HTTPException(500, { message: 'Storage is not available' });
-      }
+      const storage = getStorage(mastra);
 
       const trace = await storage.getTrace(traceId);
 
@@ -150,10 +160,7 @@ export const SCORE_TRACES_ROUTE = createRoute({
         throw new HTTPException(400, { message: 'At least one target is required' });
       }
 
-      const storage = mastra.getStorage();
-      if (!storage) {
-        throw new HTTPException(500, { message: 'Storage is not available' });
-      }
+      getStorage(mastra);
 
       const scorer = mastra.getScorerById(scorerName);
       if (!scorer) {
@@ -193,10 +200,7 @@ export const LIST_SCORES_BY_SPAN_ROUTE = createRoute({
   tags: ['Observability'],
   handler: async ({ mastra, traceId, spanId, ...params }) => {
     try {
-      const storage = mastra.getStorage();
-      if (!storage) {
-        throw new HTTPException(500, { message: 'Storage is not available' });
-      }
+      const storage = getStorage(mastra);
 
       if (!traceId || !spanId) {
         throw new HTTPException(400, { message: 'Trace ID and span ID are required' });

@@ -1,30 +1,113 @@
-import qs from 'qs';
+
 import { z } from 'zod';
 
-import { SpanType } from '../../observability';
+import { SpanType, EntityType } from '../../observability';
+import type { StorageColumn } from '../types';
 
-// ============================================================================
-// Enums and Constants
-// ============================================================================
+export interface SpanRecord {
+  traceId: string; // Unique trace identifier
+  spanId: string; // Unique span identifier within the trace
+  parentSpanId: string | null; // Parent span reference (null = root span)
+  name: string; // Human-readable span name
 
-/**
- * Entity types for span classification
- */
-export const spanEntityTypeSchema = z
-  .enum(['agent', 'workflow', 'tool', 'network', 'step'])
-  .describe("Entity type: 'agent' | 'workflow' | 'tool' | 'network' | 'step'");
+  // Entity identification - first-class fields for filtering
+  entityType: EntityType | null; // 'agent' | 'processor' | 'tool' | 'workflow'
+  entityId: string | null; // ID of the entity (e.g., 'weatherAgent', 'orderWorkflow')
+  entityName: string | null; // Name of the entity
 
-/**
- * Derived span status (computed from error/endedAt, not stored)
- */
-export const spanStatusSchema = z
-  .enum(['success', 'error', 'running'])
-  .describe("Derived status: 'error' = has error, 'running' = no endedAt, 'success' = endedAt and no error");
+  // Identity & Tenancy
+  userId: string | null; // Human end-user who triggered the trace
+  organizationId: string | null; // Multi-tenant organization/account
+  resourceId: string | null; // Broader resource context (Mastra memory compatibility)
 
-/**
- * Span type enum values
- */
-export const spanTypeSchema = z.nativeEnum(SpanType).describe('Span type classification');
+  // Correlation IDs
+  runId: string | null; // Unique execution run identifier
+  sessionId: string | null; // Session identifier for grouping traces
+  threadId: string | null; // Conversation thread identifier
+  requestId: string | null; // HTTP request ID for log correlation
+
+  // Deployment context (these items only exist on the root span)
+  environment: string | null; // 'production' | 'staging' | 'development'
+  source: string | null; // 'local' | 'cloud' | 'ci'
+  serviceName: string | null; // Name of the service
+  scope: Record<string, any> | null; // Arbitrary package/app version info {"core": "1.0.0", "memory": "1.0.0", "gitSha": "abcd1234"}
+
+  // Span data
+  spanType: SpanType; // WORKFLOW_RUN, AGENT_RUN, TOOL_CALL, etc.
+  attributes: Record<string, any> | null; // Span-type specific attributes (e.g., model, tokens, tools)
+  metadata: Record<string, any> | null; // User-defined metadata for custom filtering
+  tags: string[] | null; // Labels for filtering traces (only on the root span)
+  links: any; // References to related spans in other traces
+  input: any; // Input data passed to the span
+  output: any; // Output data returned from the span
+  error: any; // Error info - presence indicates failure (status derived from this)
+  isEvent: boolean; // Whether this is an event (point-in-time) vs a span (duration)
+
+  // Timestamps
+  startedAt: Date; // When the span started
+  endedAt: Date | null; // When the span ended (null = running, status derived from this)
+  createdAt: Date; // Database record creation time
+  updatedAt: Date | null; // Database record last update time
+}
+
+export const SPAN_SCHEMA: Record<string, StorageColumn> = {
+  // Composite primary key of traceId and spanId
+  traceId: { type: 'text', nullable: false }, // Unique trace identifier
+  spanId: { type: 'text', nullable: false }, // Unique span identifier within the trace
+  parentSpanId: { type: 'text', nullable: true }, // Parent span reference (null = root span)
+  name: { type: 'text', nullable: false }, // Human-readable span name
+  scope: { type: 'jsonb', nullable: true }, // Mastra package versions {"core": "1.0.0", "memory": "1.0.0"}
+  spanType: { type: 'text', nullable: false }, // WORKFLOW_RUN, WORKFLOW_STEP, AGENT_RUN, AGENT_STEP, TOOL_RUN, TOOL_STEP, etc.
+
+  // Entity identification - first-class fields for filtering
+  entityType: { type: 'text', nullable: true }, // 'agent' | 'workflow' | 'tool' | 'network' | 'step'
+  entityId: { type: 'text', nullable: true }, // ID/name of the entity (e.g., 'weatherAgent', 'orderWorkflow')
+  entityName: { type: 'text', nullable: true }, // Human-readable display name
+
+  // Identity & Tenancy
+  userId: { type: 'text', nullable: true }, // Human end-user who triggered the trace
+  organizationId: { type: 'text', nullable: true }, // Multi-tenant organization/account
+  resourceId: { type: 'text', nullable: true }, // Broader resource context (Mastra memory compatibility)
+
+  // Correlation IDs
+  runId: { type: 'text', nullable: true }, // Unique execution run identifier
+  sessionId: { type: 'text', nullable: true }, // Session identifier for grouping traces
+  threadId: { type: 'text', nullable: true }, // Conversation thread identifier
+  requestId: { type: 'text', nullable: true }, // HTTP request ID for log correlation
+
+  // Deployment context
+  environment: { type: 'text', nullable: true }, // 'production' | 'staging' | 'development'
+  source: { type: 'text', nullable: true }, // 'local' | 'cloud' | 'ci'
+  serviceName: { type: 'text', nullable: true }, // Name of the service
+  deploymentId: { type: 'text', nullable: true }, // Specific deployment/release identifier
+  versionInfo: { type: 'jsonb', nullable: true }, // App version info {"app": "1.0.0", "gitSha": "abc123"}
+
+  // Span data
+  attributes: { type: 'jsonb', nullable: true }, // Span-type specific attributes (e.g., model, tokens, tools)
+  metadata: { type: 'jsonb', nullable: true }, // User-defined metadata for custom filtering
+  tags: { type: 'jsonb', nullable: true }, // string[] - labels for filtering traces
+  links: { type: 'jsonb', nullable: true }, // References to related spans in other traces
+  input: { type: 'jsonb', nullable: true }, // Input data passed to the span
+  output: { type: 'jsonb', nullable: true }, // Output data returned from the span
+  error: { type: 'jsonb', nullable: true }, // Error info - presence indicates failure
+
+  // Timestamps
+  startedAt: { type: 'timestamp', nullable: false }, // When the span started
+  endedAt: { type: 'timestamp', nullable: true }, // When the span ended (null = running)
+  createdAt: { type: 'timestamp', nullable: false }, // Database record creation time
+  updatedAt: { type: 'timestamp', nullable: true }, // Database record last update time
+
+  isEvent: { type: 'boolean', nullable: false }, // Whether this is an event (point-in-time) vs a span (duration)
+};
+
+export type CreateSpanRecord = Omit<SpanRecord, 'createdAt' | 'updatedAt'>;
+export type UpdateSpanRecord = Omit<CreateSpanRecord, 'spanId' | 'traceId'>;
+
+export interface TraceRecord {
+  traceId: string;
+  spans: SpanRecord[];
+}
+
 
 // ============================================================================
 // Core Type Schemas (source of truth with proper types)
@@ -208,217 +291,55 @@ const SCALAR_FILTER_KEYS = [
   'hasChildError',
 ] as const;
 
-/**
- * Parses query params into TracesPaginatedArg using qs + Zod validation.
- *
- * Accepts either:
- * - A query string: "page=0&perPage=20&entityType=agent&dateRange[start]=..."
- * - A Record from Hono/Express: { 'page': '0', 'entityType': 'agent', 'dateRange[start]': '...' }
- *
- * Query format (flattened):
- * - page, perPage: Simple scalars at root level
- * - entityType, entityId, status, etc.: Simple scalars at root level
- * - dateRange[start], dateRange[end]: Bracket notation for nested object
- * - tags[0], tags[1]: Bracket notation for arrays
- * - metadata[key]: Bracket notation for key-value objects
- *
- * @param input - Query string or Record<string, string> from request
- * @returns ParseResult with validated data or ParseErrorResult with all Zod errors
- */
-export function parseTracesQueryParams(
-  input: string | Record<string, string | string[] | undefined>,
-): ParseResult | ParseErrorResult {
-  // Step 1: Convert input to query string if needed
-  let queryString: string;
-  if (typeof input === 'string') {
-    queryString = input;
-  } else {
-    // Convert Record to query string (Hono/Express give us { 'page': '0', 'entityType': 'agent' })
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(input)) {
-      if (value !== undefined) {
-        if (Array.isArray(value)) {
-          value.forEach(v => params.append(key, v));
-        } else {
-          params.append(key, value);
-        }
-      }
-    }
-    queryString = params.toString();
-  }
 
-  // Step 2: Parse query string with qs (handles bracket notation for nested objects)
-  const parsed = qs.parse(queryString, {
-    ignoreQueryPrefix: true, // Handles leading ? if present
-    allowDots: false, // We use bracket notation, not dots
-    depth: 2, // dateRange[start], metadata[key], tags[0]
-  }) as Record<string, unknown>;
-
-  // Step 3: Restructure - move params into proper schema structure
-  const restructured: Record<string, unknown> = {};
-
-  // Pagination
-  if (parsed.page !== undefined || parsed.perPage !== undefined) {
-    restructured.pagination = {
-      ...(parsed.page !== undefined && { page: parsed.page }),
-      ...(parsed.perPage !== undefined && { perPage: parsed.perPage }),
-    };
-  }
-
-  // Filters - collect all filter fields
-  const filters: Record<string, unknown> = {};
-
-  // Simple scalar filters (at root level in query string)
-  for (const key of SCALAR_FILTER_KEYS) {
-    if (parsed[key] !== undefined) {
-      filters[key] = parsed[key];
-    }
-  }
-
-  // Nested filters (already parsed by qs into objects/arrays)
-  if (parsed.startedAt !== undefined) {
-    filters.startedAt = parsed.startedAt;
-  }
-  if (parsed.endedAt !== undefined) {
-    filters.endedAt = parsed.endedAt;
-  }
-  if (parsed.tags !== undefined) {
-    filters.tags = parsed.tags;
-  }
-  if (parsed.metadata !== undefined) {
-    filters.metadata = parsed.metadata;
-  }
-  if (parsed.scope !== undefined) {
-    filters.scope = parsed.scope;
-  }
-  if (parsed.versionInfo !== undefined) {
-    filters.versionInfo = parsed.versionInfo;
-  }
-
-  if (Object.keys(filters).length > 0) {
-    restructured.filters = filters;
-  }
-
-  // Order by (nested - uses bracket notation)
-  if (parsed.orderBy !== undefined) {
-    restructured.orderBy = parsed.orderBy;
-  }
-
-  // Step 4: Validate with Zod schema (handles type coercion)
-  const result = tracesPaginatedArgSchema.safeParse(restructured);
-
-  if (!result.success) {
-    const errors: ValidationError[] = result.error.issues.map(issue => ({
-      field: issue.path.join('.'),
-      message: issue.message,
-    }));
-    return { success: false, errors };
-  }
-
-  return { success: true, data: result.data };
+// Derived status helper (status is computed from error/endedAt, not stored)
+export function getSpanStatus(span: { error: any; endedAt: Date | null }): 'success' | 'error' | 'running' {
+  if (span.error) return 'error';
+  if (span.endedAt === null) return 'running';
+  return 'success';
 }
 
-// ============================================================================
-// Query Parameter Serialization (Client-Side)
-// ============================================================================
 
-/**
- * Serializes TracesPaginatedArg to a query string using qs.stringify.
- *
- * Query format (flattened for readability):
- * - page, perPage: Simple scalars at root level
- * - entityType, entityId, status, etc.: Simple scalars at root level
- * - dateRange[start], dateRange[end]: Bracket notation for nested object
- * - tags[0], tags[1]: Bracket notation for arrays
- * - metadata[key]: Bracket notation for key-value objects
- *
- * Examples:
- * - { pagination: { page: 0 } } → page=0
- * - { filters: { entityType: "agent" } } → entityType=agent
- * - { filters: { tags: ["a", "b"] } } → tags[0]=a&tags[1]=b
- * - { filters: { dateRange: { start: Date } } } → dateRange[start]=2024-01-01T00:00:00.000Z
- *
- * @param args - The TracesPaginatedArg to serialize
- * @returns Query string (without leading ?)
- */
-export function serializeTracesParams(args: TracesPaginatedArg): string {
-  const flattened = prepareForSerialization(args);
 
-  return qs.stringify(flattened, {
-    encode: true, // URL-encode values
-    skipNulls: true, // Don't include null/undefined values
-    arrayFormat: 'indices', // tags[0]=a&tags[1]=b
-  });
-}
+// Status filter (derived: 'error' = has error, 'running' = no endedAt, 'success' = endedAt and no error)
+export type SpanStatus = 'error' | 'running' | 'success';
 
-/**
- * Prepares TracesPaginatedArg for qs.stringify:
- * - Flattens pagination to root level (page, perPage)
- * - Flattens simple scalar filters to root level
- * - Keeps nested structures (startedAt, endedAt, orderBy, tags, metadata, etc.) for bracket notation
- * - Converts Date objects to ISO strings
- */
-function prepareForSerialization(args: TracesPaginatedArg): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+export interface TracesPaginatedArg {
+  filters?: {
+    // Span type filter
+    spanType?: SpanType;
 
-  // Flatten pagination to root level
-  if (args.pagination?.page !== undefined) {
-    result.page = args.pagination.page;
-  }
-  if (args.pagination?.perPage !== undefined) {
-    result.perPage = args.pagination.perPage;
-  }
+    // Entity filters
+    entityType?: SpanEntityType;
+    entityId?: string;
+    entityName?: string;
 
-  if (args.filters) {
-    // Flatten simple scalar filters to root level
-    for (const key of SCALAR_FILTER_KEYS) {
-      const value = args.filters[key];
-      if (value !== undefined) {
-        result[key] = value;
-      }
-    }
+    // Status filter
+    status?: SpanStatus;
 
-    // Keep nested structures (qs will use bracket notation)
-    // startedAt - convert Date to ISO string
-    if (args.filters.startedAt) {
-      result.startedAt = {
-        ...(args.filters.startedAt.start && { start: args.filters.startedAt.start.toISOString() }),
-        ...(args.filters.startedAt.end && { end: args.filters.startedAt.end.toISOString() }),
-      };
-    }
+    // Tag filter (match any of these tags)
+    tags?: string[];
 
-    // endedAt - convert Date to ISO string
-    if (args.filters.endedAt) {
-      result.endedAt = {
-        ...(args.filters.endedAt.start && { start: args.filters.endedAt.start.toISOString() }),
-        ...(args.filters.endedAt.end && { end: args.filters.endedAt.end.toISOString() }),
-      };
-    }
+    // Identity & Tenancy filters
+    userId?: string;
+    organizationId?: string;
+    resourceId?: string;
 
-    // tags - keep as array
-    if (args.filters.tags && args.filters.tags.length > 0) {
-      result.tags = args.filters.tags;
-    }
+    // Correlation ID filters
+    runId?: string;
+    sessionId?: string;
+    threadId?: string;
+    requestId?: string;
 
-    // metadata, scope, versionInfo - keep as objects
-    if (args.filters.metadata && Object.keys(args.filters.metadata).length > 0) {
-      result.metadata = args.filters.metadata;
-    }
-    if (args.filters.scope && Object.keys(args.filters.scope).length > 0) {
-      result.scope = args.filters.scope;
-    }
-    if (args.filters.versionInfo && Object.keys(args.filters.versionInfo).length > 0) {
-      result.versionInfo = args.filters.versionInfo;
-    }
-  }
+    // Deployment context filters
+    environment?: string;
+    source?: string;
+    serviceName?: string;
+    deploymentId?: string;
 
-  // orderBy - nested structure with field and direction
-  if (args.orderBy) {
-    result.orderBy = {
-      ...(args.orderBy.field && { field: args.orderBy.field }),
-      ...(args.orderBy.direction && { direction: args.orderBy.direction }),
-    };
-  }
-
-  return result;
+    // JSONB filters (key-value matching)
+    metadata?: Record<string, unknown>;
+    scope?: Record<string, unknown>;
+  };
+  pagination?: PaginationArgs;
 }

@@ -12,7 +12,6 @@ export type {
   DateRange,
   PaginationArgs,
   TracesOrderByField,
-  SortDirection,
   TracesOrderBy,
   TracesFilter,
   TracesPaginatedArg,
@@ -49,6 +48,7 @@ export interface StorageColumn {
     column: string;
   };
 }
+
 export interface WorkflowRuns {
   runs: WorkflowRun[];
   total: number;
@@ -62,6 +62,7 @@ export interface StorageWorkflowRun {
   createdAt: Date;
   updatedAt: Date;
 }
+
 export interface WorkflowRun {
   workflowName: string;
   runId: string;
@@ -175,130 +176,18 @@ export type StorageMessageType = {
 
 export interface StorageOrderBy {
   field?: ThreadOrderBy;
-  direction?: ThreadSortDirection;
+  direction?: SortDirection;
 }
 
 export interface ThreadSortOptions {
   orderBy?: ThreadOrderBy;
-  sortDirection?: ThreadSortDirection;
+  sortDirection?: SortDirection;
 }
 
 export type ThreadOrderBy = 'createdAt' | 'updatedAt';
 
-export type ThreadSortDirection = 'ASC' | 'DESC';
+export type SortDirection = 'ASC' | 'DESC';
 
-// Derived status helper (status is computed from error/endedAt, not stored)
-export function getSpanStatus(span: { error: any; endedAt: Date | null }): 'success' | 'error' | 'running' {
-  if (span.error) return 'error';
-  if (span.endedAt === null) return 'running';
-  return 'success';
-}
-
-export interface VersionInfo {
-  app?: string;
-  gitSha?: string;
-  branch?: string;
-  buildId?: string;
-  [key: string]: string | undefined;
-}
-
-export interface SpanRecord {
-  traceId: string; // Unique trace identifier
-  spanId: string; // Unique span identifier within the trace
-  parentSpanId: string | null; // Parent span reference (null = root span)
-  name: string; // Human-readable span name
-  scope: Record<string, any> | null; // Mastra package versions {"core": "1.0.0", "memory": "1.0.0"}
-  spanType: SpanType; // WORKFLOW_RUN, AGENT_RUN, TOOL_CALL, etc.
-
-  // Entity identification - first-class fields for filtering
-  entityType: SpanEntityType | null; // 'agent' | 'workflow' | 'tool' | 'network' | 'step'
-  entityId: string | null; // ID/name of the entity (e.g., 'weatherAgent', 'orderWorkflow')
-  entityName: string | null; // Human-readable display name
-
-  // Identity & Tenancy
-  userId: string | null; // Human end-user who triggered the trace
-  organizationId: string | null; // Multi-tenant organization/account
-  resourceId: string | null; // Broader resource context (Mastra memory compatibility)
-
-  // Correlation IDs
-  runId: string | null; // Unique execution run identifier
-  sessionId: string | null; // Session identifier for grouping traces
-  threadId: string | null; // Conversation thread identifier
-  requestId: string | null; // HTTP request ID for log correlation
-
-  // Deployment context
-  environment: string | null; // 'production' | 'staging' | 'development'
-  source: string | null; // 'local' | 'cloud' | 'ci'
-  serviceName: string | null; // Name of the service
-  deploymentId: string | null; // Specific deployment/release identifier
-  versionInfo: VersionInfo | null; // App version info {"app": "1.0.0", "gitSha": "abc123"}
-
-  // Span data
-  attributes: Record<string, any> | null; // Span-type specific attributes (e.g., model, tokens, tools)
-  metadata: Record<string, any> | null; // User-defined metadata for custom filtering
-  tags: string[] | null; // Labels for filtering traces
-  links: any; // References to related spans in other traces
-  input: any; // Input data passed to the span
-  output: any; // Output data returned from the span
-  error: any; // Error info - presence indicates failure (status derived from this)
-
-  // Timestamps
-  startedAt: Date; // When the span started
-  endedAt: Date | null; // When the span ended (null = running, status derived from this)
-  createdAt: Date; // Database record creation time
-  updatedAt: Date | null; // Database record last update time
-
-  isEvent: boolean; // Whether this is an event (point-in-time) vs a span (duration)
-}
-
-export type CreateSpanRecord = Omit<SpanRecord, 'createdAt' | 'updatedAt'>;
-export type UpdateSpanRecord = Omit<CreateSpanRecord, 'spanId' | 'traceId'>;
-
-export interface TraceRecord {
-  traceId: string;
-  spans: SpanRecord[];
-}
-
-export interface TracesPaginatedArg {
-  filters?: {
-    // Span type filter
-    spanType?: SpanType;
-
-    // Entity filters
-    entityType?: SpanEntityType;
-    entityId?: string;
-    entityName?: string;
-
-    // Status filter (derived: 'error' = has error, 'running' = no endedAt, 'success' = endedAt and no error)
-    status?: SpanStatus;
-
-    // Tag filter (match any of these tags)
-    tags?: string[];
-
-    // Identity & Tenancy filters
-    userId?: string;
-    organizationId?: string;
-    resourceId?: string;
-
-    // Correlation ID filters
-    runId?: string;
-    sessionId?: string;
-    threadId?: string;
-    requestId?: string;
-
-    // Deployment context filters
-    environment?: string;
-    source?: string;
-    serviceName?: string;
-    deploymentId?: string;
-
-    // JSONB filters (key-value matching)
-    metadata?: Record<string, unknown>;
-    scope?: Record<string, unknown>;
-    versionInfo?: Record<string, unknown>;
-  };
-  pagination?: PaginationArgs;
-}
 
 // Agent Storage Types
 

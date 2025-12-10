@@ -50,6 +50,13 @@ export enum SpanType {
   WORKFLOW_WAIT_EVENT = 'workflow_wait_event',
 }
 
+export enum EntityType {
+  AGENT = 'agent',
+  PROCESSOR = 'processor',
+  TOOL = 'tool',
+  WORKFLOW = 'workflow',
+}
+
 // ============================================================================
 // Type-Specific Attributes Interfaces
 // ============================================================================
