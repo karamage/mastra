@@ -1,4 +1,4 @@
-import type { ToolExecutionOptions } from 'ai';
+import type { ToolExecutionOptions } from '@internal/ai-sdk-v5';
 import type { z } from 'zod';
 
 // Client-side tool execution context (simplified version without server dependencies)
