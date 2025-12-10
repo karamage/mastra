@@ -1,8 +1,13 @@
 import type { ReadableStream } from 'node:stream/web';
 import { TransformStream } from 'node:stream/web';
 import { getErrorMessage } from '@ai-sdk/provider-v5';
-import { createTextStreamResponse, createUIMessageStream, createUIMessageStreamResponse, generateId } from 'ai-v5';
-import type { ObjectStreamPart, TextStreamPart, ToolSet, UIMessage, UIMessageStreamOptions } from 'ai-v5';
+import {
+  createTextStreamResponse,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateId,
+} from '@internal/ai-sdk-v5';
+import type { ObjectStreamPart, TextStreamPart, ToolSet, UIMessage, UIMessageStreamOptions } from '@internal/ai-sdk-v5';
 import type { MessageList } from '../../../agent/message-list';
 import type { StructuredOutputOptions } from '../../../agent/types';
 import type { TracingContext } from '../../../observability';

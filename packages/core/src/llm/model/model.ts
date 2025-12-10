@@ -4,9 +4,8 @@ import type {
   LanguageModelV1 as LanguageModel,
   StreamObjectOnFinishCallback,
   StreamTextOnFinishCallback,
-  Schema,
 } from '@internal/ai-sdk-v4';
-import type { JSONSchema7 } from '@mastra/schema-compat';
+import type { JSONSchema7, Schema } from '@mastra/schema-compat';
 import {
   AnthropicSchemaCompatLayer,
   applyCompatLayer,
@@ -111,7 +110,8 @@ export class MastraLLMV1 extends MastraBase {
     }
 
     return applyCompatLayer({
-      schema: schema as Schema | ZodSchema,
+      // @ts-expect-error - TODO fix, JSONSchema7 is not assignable to Schema
+      schema: schema,
       compatLayers: schemaCompatLayers,
       mode: 'aiSdkSchema',
     });
@@ -745,6 +745,7 @@ export class MastraLLMV1 extends MastraBase {
         messages,
         // @ts-expect-error - output in our implementation can only be object or array
         output,
+        // @ts-expect-error check types
         schema: processedSchema as Schema<inferOutput<T>>,
       };
 

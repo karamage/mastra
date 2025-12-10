@@ -1,4 +1,12 @@
-import type { StepResult, ToolSet, StaticToolCall, StaticToolResult, DynamicToolCall, DynamicToolResult } from 'ai-v5';
+import type {
+  StepResult,
+  ToolSet,
+  StaticToolCall,
+  StaticToolResult,
+  DynamicToolCall,
+  DynamicToolResult,
+  ContentPart,
+} from '@internal/ai-sdk-v5';
 export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOLS> {
   readonly content: StepResult<TOOLS>['content'];
   readonly finishReason: StepResult<TOOLS>['finishReason'];
@@ -53,7 +61,7 @@ export class DefaultStepResult<TOOLS extends ToolSet> implements StepResult<TOOL
     return this.content.filter(part => part.type === 'file').map(part => part.file);
   }
 
-  get sources() {
+  get sources(): Extract<ContentPart<TOOLS>, { type: 'source' }>[] {
     return this.content.filter(part => part.type === 'source');
   }
 
