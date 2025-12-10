@@ -5,6 +5,18 @@
   "type": "module",
   "main": "src/index.js",
   "private": true,
+  "exports": {
+    ".": {
+      "import": {
+        "default": "./src/index.js"
+      }
+    },
+    "./embed-types": {
+      "import": {
+        "default": "./src/embed-types.js"
+      }
+    }
+  },
   "scripts": {},
   "keywords": [],
   "author": "",
