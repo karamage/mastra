@@ -1,6 +1,6 @@
 import { embedTypes } from '@internal/types-builder/embed-types';
-import { Project } from 'ts-morph';
 import { defineConfig } from 'tsup';
+import { Project } from 'ts-morph';
 
 async function fixExportBugInDtsFile(dtsFile: string) {
   const project = new Project();
@@ -46,7 +46,7 @@ export default defineConfig({
       await embedTypes(
         dtsFile,
         process.cwd(),
-        new Set(['ai', '@ai-sdk/*', '@opentelemetry/api', '@types/json-schema']),
+        new Set(['ai', '@ai-sdk/*', '@opentelemetry/api', '@standard-schema/spec', '@types/json-schema']),
       );
 
       await fixExportBugInDtsFile(dtsFile);
