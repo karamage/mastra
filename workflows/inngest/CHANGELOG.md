@@ -1,5 +1,14 @@
 # @mastra/inngest
 
+## 1.0.0-beta.7
+
+### Patch Changes
+
+- Refactor internal event system from Emitter to PubSub abstraction for workflow event handling. This change replaces the EventEmitter-based event system with a pluggable PubSub interface, enabling support for distributed workflow execution backends like Inngest. Adds `close()` method to PubSub implementations for proper cleanup. ([#11052](https://github.com/mastra-ai/mastra/pull/11052))
+
+- Updated dependencies [[`24b76d8`](https://github.com/mastra-ai/mastra/commit/24b76d8e17656269c8ed09a0c038adb9cc2ae95a)]:
+  - @mastra/core@1.0.0-beta.12
+
 ## 1.0.0-beta.6
 
 ### Patch Changes
